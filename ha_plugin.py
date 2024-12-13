@@ -19,29 +19,29 @@ def get_fileenv(var: str):
         Content of the environment variable file if exists, or the value of the environment variable.
         None if the environment variable does not exist.
     """
-    path = os.environ.get(var + '_FILE')
+    path = os.environ.get(var + "_FILE")
 
     if path:
         with open(path) as file:
             return file.read().strip()
     else:
         try:
-            with open(os.path.join('run', 'secrets', var.lower())) as file:
+            with open(os.path.join("run", "secrets", var.lower())) as file:
                 return file.read().strip()
         except IOError:
             # mongo username needs to be string and not empty (fix for sphinx)
-            if 'sphinx' in sys.modules:
-                return os.environ.get(var, 'fail')
+            if "sphinx" in sys.modules:
+                return os.environ.get(var, "fail")
             else:
                 return os.environ.get(var)
 
 
-MQTT_HOST = os.environ.get('HA_MQTT_HOST', '127.0.0.1')
-MQTT_PORT = int(os.environ.get('HA_MQTT_PORT', 1883))
-MQTT_USERNAME = get_fileenv('HA_MQTT_USERNAME') or 'lorabridge'
-MQTT_PASSWORD = get_fileenv('HA_MQTT_PASSWORD') or 'lorabridge'
-LORABRIDGE_DISCOVERY_TOPIC = os.environ.get('HA_DISCOVERY_TOPIC', 'lorabridge/discovery')
-LORABRIDGE_STATE_TOPIC = os.environ.get('HA_STATE_TOPIC', 'lorabridge/state')
+MQTT_HOST = os.environ.get("HA_MQTT_HOST", "127.0.0.1")
+MQTT_PORT = int(os.environ.get("HA_MQTT_PORT", 1883))
+MQTT_USERNAME = get_fileenv("HA_MQTT_USERNAME") or "lorabridge"
+MQTT_PASSWORD = get_fileenv("HA_MQTT_PASSWORD") or "lorabridge"
+LORABRIDGE_DISCOVERY_TOPIC = os.environ.get("HA_DISCOVERY_TOPIC", "lorabridge/discovery")
+LORABRIDGE_STATE_TOPIC = os.environ.get("HA_STATE_TOPIC", "lorabridge/state")
 
 # DEVICE_CLASSES = ("None", "apparent_power", "aqi", "battery", "carbon_dioxide", "carbon_monoxide", "current", "date",
 #                   "duration", "energy", "frequency", "gas", "humidity", "illuminance", "monetary", "nitrogen_dioxide",
@@ -63,8 +63,8 @@ def on_connect(client, userdata, flags, rc):
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    client.subscribe(userdata['lorabridge_state'] + '/#')
-    client.subscribe(userdata['lorabridge_discovery'] + '/#')
+    client.subscribe(userdata["lorabridge_state"] + "/#")
+    client.subscribe(userdata["lorabridge_discovery"] + "/#")
 
 
 # The callback for when a PUBLISH message is received from the server.
@@ -101,15 +101,27 @@ def convert_to_ha_discovery(data, client):
         elif type(data["value"][measurement_type]) is bool:
             sensor_type = "binary_sensor"
 
-        ha_discovery_topic = "homeassistant/" + sensor_type + "/lorabridge_sensor" + str(
-            device_id) + "_" + measurement_type + "/config"
+        ha_discovery_topic = (
+            "homeassistant/"
+            + sensor_type
+            + "/lorabridge_sensor"
+            + str(device_id)
+            + "_"
+            + measurement_type
+            + "/config"
+        )
 
         ha_discovery_msg = {}
-        ha_discovery_msg["name"] = "lorabridge_sensor" + str(device_id) + "_" + measurement_type
+        # ha_discovery_msg["name"] = "lorabridge_sensor" + str(device_id) + "_" + measurement_type
+        ha_discovery_msg["name"] = (
+            data["name"] + "_" + data["ieee_id"] + "_lb" + data["lb_id"] + "_" + measurement_type
+        )
 
         try:
-            ha_discovery_msg["device_class"] = DEVICE_MAPPINGS[measurement_type]['device_class']
-            ha_discovery_msg["unit_of_measurement"] = UNITS[DEVICE_MAPPINGS[measurement_type]['device_class']]
+            ha_discovery_msg["device_class"] = DEVICE_MAPPINGS[measurement_type]["device_class"]
+            ha_discovery_msg["unit_of_measurement"] = UNITS[
+                DEVICE_MAPPINGS[measurement_type]["device_class"]
+            ]
         except KeyError:
             pass
 
@@ -118,7 +130,9 @@ def convert_to_ha_discovery(data, client):
         # else:
         #     ha_discovery_msg["device_class"] = measurement_type
         #     ha_discovery_msg["unit_of_measurement"] = DEVICE_CLASSES[measurement_type]
-        ha_discovery_msg["state_topic"] = "homeassistant/sensor/lorabridge_sensor" + str(device_id) + "/state"
+        ha_discovery_msg["state_topic"] = (
+            "homeassistant/sensor/lorabridge_sensor" + str(device_id) + "/state"
+        )
         ha_discovery_msg["value_template"] = "{{ value_json." + measurement_type + "}}"
 
         # Publish with retain
@@ -128,13 +142,13 @@ def convert_to_ha_discovery(data, client):
 def convert_to_ha_state(data, client):
     ha_state_msg = {}
 
-    measurement_type = data["measurement"]
+    # measurement_type = data["measurement"]
     # measurement_value = data["value"]
     device_id = data["id"]
 
     # sensor_type = "sensor"
 
-    #if type(data["value"]) is bool:
+    # if type(data["value"]) is bool:
     #    sensor_type = "binary_sensor"
 
     # if measurement_type != "temperature":
@@ -145,31 +159,36 @@ def convert_to_ha_state(data, client):
 
     # ha_state_msg[measurement_type] = measurement_value
 
-    for val in data['value']:
+    for val in data["value"]:
 
-        #if type(data['value'][val]) is bool:
+        # if type(data['value'][val]) is bool:
         #    data['value'][val] = 'ON' if data['value'][val] else 'OFF'
 
         # Map Z2M measurements to HA MQTT measurements
 
         if val in DEVICE_MAPPINGS:
-            if "value_mapping" in DEVICE_MAPPINGS[val] and data['value'][val] in DEVICE_MAPPINGS[val]["value_mapping"]:
-                data['value'][val] = DEVICE_MAPPINGS[val]["value_mapping"][data['value'][val]]
+            if (
+                "value_mapping" in DEVICE_MAPPINGS[val]
+                and data["value"][val] in DEVICE_MAPPINGS[val]["value_mapping"]
+            ):
+                data["value"][val] = DEVICE_MAPPINGS[val]["value_mapping"][data["value"][val]]
 
-    client.publish(ha_state_topic, json.dumps(data['value']), 0, retain=True)
+    client.publish(ha_state_topic, json.dumps(data["value"]), 0, retain=True)
 
 
 def main():
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
 
     client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-    client.user_data_set({
-        "lorabridge_discovery": LORABRIDGE_DISCOVERY_TOPIC,
-        "lorabridge_state": LORABRIDGE_STATE_TOPIC
-    })
+    client.user_data_set(
+        {
+            "lorabridge_discovery": LORABRIDGE_DISCOVERY_TOPIC,
+            "lorabridge_state": LORABRIDGE_STATE_TOPIC,
+        }
+    )
     client.connect(MQTT_HOST, MQTT_PORT, 60)
 
     # Blocking call that processes network traffic, dispatches callbacks and
@@ -179,5 +198,5 @@ def main():
     client.loop_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
