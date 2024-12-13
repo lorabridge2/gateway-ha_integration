@@ -43,6 +43,6 @@ jobs:
           push: true
           platforms: linux/arm/v7
           tags: |
-            ${{ env.REGISTRY }}/lorabridge/gateway-ha_integration:latest
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/lorabridge/gateway-ha_integration:latest
+            ${{ env.REGISTRY }}/lorabridge2/gateway-ha_integration:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/lorabridge2/gateway-ha_integration:latest
           cache-to: type=inline
