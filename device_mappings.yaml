@@ -256,7 +256,6 @@ water_leak:
         false: 'OFF'
         true: 'ON'
 state:
-    device_class: None
     sensor_type: binary_sensor
     value_mapping:
         false: 'OFF'
