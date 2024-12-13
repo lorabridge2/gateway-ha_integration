@@ -114,7 +114,7 @@ def convert_to_ha_discovery(data, client):
         ha_discovery_msg = {}
         # ha_discovery_msg["name"] = "lorabridge_sensor" + str(device_id) + "_" + measurement_type
         ha_discovery_msg["name"] = (
-            data["lb_name"] + "_" + data["ieee_id"] + "_lb" + data["lb_id"] + "_" + measurement_type
+            data["lb_name"] + "_" + data["ieee_id"] + "_lb" + data["id"] + "_" + measurement_type
         )
 
         try:
